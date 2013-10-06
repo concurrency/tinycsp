@@ -2,10 +2,10 @@ all: prodcons commstime
 	echo "Done"
 	
 prodcons:
-	gcc -I. -o prodcons.exe prodcons.c
+	gcc -I. -o prodcons.exe tinycsp.c prodcons.c
 
 commstime:
-	gcc -I. -o commstime.exe commstime.c
+	gcc -I. -o commstime.exe list.c tinycsp.c commstime.c
 
-schedule:
-	gcc -I. -o schedule.exe schedule.c
+prodcons2:
+	gcc -I. -o pc2.exe list.c tinycsp.c prodcons2.c
