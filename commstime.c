@@ -7,7 +7,6 @@
 #include <time.h>
 
 
-
 extern struct list RQ;
 process *current_process;
 
@@ -15,17 +14,7 @@ int main (void) {
   // Declare channels
   static channel a, b, c, d;
   // Declare processes
-  static process id, prefix, delta, succ, consume, main;
-  // Declare Parameters
-  // The compiler could get rid of all of these, by
-  // simply using the correct values in the correct places.
-  // This is a VAL INT
-  int prefix_0;
-  int consume_0;
-  
-
-  // Declare the scheduler jump point.
-  static void *scheduler;
+  static process prefix, delta, seqdelta, succ, consume, main, id;
 
   // And, the next item to run.
   void *next, *end, *start;
@@ -43,26 +32,28 @@ int main (void) {
   CHAN_INIT (c);
   CHAN_INIT (d);
   
-  // Set up all the processes with initial labels.
+  // Set up all the processes with initial labels
   id.label   = &&ID;
   
   prefix.label = &&PREFIX;
-  prefix_0 = 0;
+  // VAL INTs can become defines
+  #define prefix_0 0
     
   delta.label  = &&DELTA;
+  
+  seqdelta.label = &&SEQDELTA;
     
   succ.label   = &&SUCC;
   
   consume.label = &&CONSUME;
-  consume_0 = 1000000;
+  // VAL INTs can become defines
+  #define consume_0  1000000
   
   main.label = &&MAIN;
   
   // Set the end point
   end   = &&hotel_california;
 
-  // Set up the pointer to the scheduler
-  scheduler = &&scheduler;
   DEBUG(printf ("Jumping to main...\n");)
   goto *(list_entry(list_front(&RQ), process, e)->label);
   
@@ -81,24 +72,20 @@ int main (void) {
   current_process = &id;
   DEBUG(printf("ID\n");)
   do {
-    int locals[1];
+    int local;
     while (true) {
-      ID_READ_CH:
-      CURRENT_LABEL(ID_READ_CH);
-      READ (b, locals[0]);
-      
-      ID_WRITE_CH:
-      CURRENT_LABEL(ID_WRITE_CH);
-      WRITE (a, locals[0]);
+      READ (ID_READ_CH, b, local);
+      WRITE (ID_WRITE_CH, a, local);
     }
+    SCHEDULE_NEXT();
   } while (0);
   
   /*
   --{{{  PROC prefix (VAL INT n, CHAN OF INT in, out)
-  PROC prefix (VAL INT n, CHAN OF INT in, out)
+  PROC prefix (VAL INT n, CHAN OF INT b?, a!)
     SEQ
-      out ! n
-      id (in, out)
+      a ! n
+      id (b, a)
   :
   --}}}
   */
@@ -106,16 +93,17 @@ int main (void) {
   current_process = &prefix;
   DEBUG(printf ("PREFIX\n");)
   do {
-    PREFIX_WRITE_CH:
-    CURRENT_LABEL(PREFIX_WRITE_CH);
 
-    WRITE (a, prefix_0);
-    // Calling a process is the same as adding
-    // it to the queue?
-    add_to_back (&id);
+    WRITE (PREFIX_WRITE_A, a, prefix_0);
+    // Executing a process is the same as adding
+    // it to the queue? Not really. Probably should
+    // jump to it.
+    add_to_front (&id);
+    goto *id.label;
+    
     // The last thing a process does is dive into the
     // scheduler, I suppose.
-    goto *scheduler;
+    SCHEDULE_NEXT();
   } while (0);
   
   /*
@@ -140,31 +128,56 @@ int main (void) {
     process p1, p2;
     
     while (true) {
-      DELTA_READ_CH:
-      CURRENT_LABEL(DELTA_READ_CH);
-      READ (a, local_0);
+      READ (DELTA_READ_A, a, local_0);
       
       // START OF PAR
-      p1.label = &&DELTA_PAR_1;
-      p2.label = &&DELTA_PAR_2;
+      p1.label = &&DELTA_WRITE_C;
+      p2.label = &&DELTA_WRITE_D;
       add_to_back(&p1);
       add_to_back(&p2);
       
       // ANONYMOUS PROCESSES?
-      DELTA_PAR_1:
-      CURRENT_LABEL(DELTA_PAR_1);
-      WRITE (c, local_0);
+      WRITE (DELTA_WRITE_C, c, local_0);
       remove_from_queue(&p1);
-      goto *scheduler;
-        
-      DELTA_PAR_2:
-      CURRENT_LABEL(DELTA_PAR_2);
-      WRITE (d, local_0);
+      SCHEDULE_NEXT();
+
+      WRITE (DELTA_WRITE_D, d, local_0);
       remove_from_queue(&p2);
-      goto *scheduler;
+      SCHEDULE_NEXT();
       
     }
   } while (0);
+
+  /*
+  --{{{  PROC seq.delta (CHAN OF INT in, out.0, out.1)
+  PROC seq.delta (CHAN OF INT in, out.0, out.1)
+    WHILE TRUE
+      INT n:
+      SEQ
+        in ? n
+        out.0 ! n
+        out.1 ! n
+  :
+  --}}}
+  */
+  
+  SEQDELTA:
+  current_process = &seqdelta;
+  DEBUG(printf ("SEQ DELTA\n");)
+  do {
+    int local_0;
+    
+    while (true) {
+      READ (SEQDELTA_READ_A, a, local_0);
+      /* THIS BREAKS IF I SEND ON CHANNEL C FIRST */
+      WRITE (SEQDELTA_WRITE_D, d, local_0);   
+      WRITE (SEQDELTA_WRITE_C, c, local_0);   
+    }
+    
+    SCHEDULE_NEXT();
+  } while (0);
+  
+
   
   /*
   --{{{  PROC succ (CHAN OF INT in, out)
@@ -183,13 +196,8 @@ int main (void) {
   do {
     int local_0;
     while (true) {
-      SUCC_READ:
-      CURRENT_LABEL(SUCC_READ);
-      READ (c, local_0);
-      
-      SUCC_WRITE:
-      CURRENT_LABEL(SUCC_WRITE);
-      WRITE (b, local_0 + 1);
+      READ (SUCC_READ_C, c, local_0);
+      WRITE (SUCC_WRITE_B, b, (local_0 + 1));
     }
   } while (0);
   
@@ -246,9 +254,7 @@ int main (void) {
     
     for (i = 0 ; i < 1000 ; i++) {
       int local_value;
-      CONSUME_READ_1:
-      CURRENT_LABEL(CONSUME_READ_1);
-      READ (d, local_value);
+      READ (CONSUME_READ_D1, d, local_value);
     }
 
     
@@ -259,10 +265,7 @@ int main (void) {
       // clock_gettime(CLOCK_REALTIME, &local_ts0);
       gettimeofday(&local_ts0, NULL);
       for (i = 0 ; i < consume_0 ; i++) {
-
-        CONSUME_READ_2:
-        CURRENT_LABEL(CONSUME_READ_2);
-        READ (d, local_value);
+        READ (CONSUME_READ_D2, d, local_value);
         
       }
       // clock_gettime(CLOCK_REALTIME, &local_ts1);
@@ -270,6 +273,7 @@ int main (void) {
       diff = ((uint)local_ts1.tv_usec * 1000) - ((uint)local_ts0.tv_usec * 1000);
       ctx = ((diff / consume_0) / 4);
       
+      // Cheating; I don't want to handle rollover right now.
       if (ctx < 300) {
         printf ("dT ns: %u\n", diff);
         printf ("Ctx Switch: %u\n", ctx);        
@@ -297,24 +301,24 @@ int main (void) {
   // PAR
   // Add everyone to the party.
   add_to_front(&prefix);
-  add_to_front(&delta);
   add_to_front(&succ);
+
+  // CFLAGS=-DUSESEQDELTA make commstime && ./commstime.exe
+#ifdef USESEQDELTA
+     add_to_front(&seqdelta); 
+#else
+    add_to_front(&delta);
+#endif
+
   add_to_front(&consume);
+  
   // Remove ourself from the queue.
   remove_from_queue(&main);
+  
   // Set the last process in the PAR to be next.
   current_process = &consume;
-  goto *scheduler;
+  SCHEDULE_NEXT();
   goto *end;
-      
-  scheduler:
-  do {
-    current_process = get_next_process(current_process);
-    // sleep (1);
-    goto *(current_process->label);
-
-  } while (0);
-
   
   // You can check out, but you can never leave.
   hotel_california:

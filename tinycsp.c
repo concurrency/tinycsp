@@ -1,4 +1,6 @@
 #include "tinycsp.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 struct list RQ;
     
@@ -41,6 +43,14 @@ get_next_process (process *p) {
   tmp = list_next(&p->e);
   
   if (tmp == list_tail(&RQ)) {
+    
+    if (deadlocked == true) {
+      printf ("WE HAVE DEADLOCKED\n");
+      exit(-1);
+    }
+    
+    DEBUG(printf("next = front of queue\n");)
+    deadlocked = true;
     next = list_entry(list_front(&RQ), process, e);
   } else {
     next = list_entry(tmp, process, e);

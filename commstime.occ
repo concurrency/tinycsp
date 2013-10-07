@@ -262,19 +262,3 @@ PROC comms.time (CHAN OF BYTE screen)
 
 :
 --}}}
-
---{{{  PROC main
-PROC main ()
-  SEQ
-    CHAN BYTE c:
-    PAR
-      comms.time (c!)
-      --{{{  write characters to serial port
-      WHILE TRUE
-        BYTE b:
-        SEQ
-          c ? b
-          serialWrite ([b])
-      --}}}
-:
---}}}

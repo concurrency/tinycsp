@@ -1,6 +1,8 @@
 #ifndef __TINYCSPH
 #define __TINYCSPH
 
+// #define DEBUG_FLAG
+
 /* ***************************************************************** */
 /* CONSTANTS */
 #include "list.h"
@@ -8,11 +10,15 @@
 #define true 1
 #define false 0
 
-#define DEBUG_FLAG 0
-#define DEBUG(exp) \
-if (DEBUG_FLAG) { \
-  exp; \
-} \
+#ifdef DEBUG_FLAG
+#define DEBUG(exp) exp 
+#else
+#define DEBUG(exp)
+#endif
+
+// Matt's cheap O(1) deadlock detection
+// We just have to go through the list once.
+int deadlocked;
 
 /* ***************************************************************** */
 /* CHANNEL HELPERS */
@@ -23,35 +29,50 @@ do { \
   ch.read_ok =  0; \
 } while (0);
 
-#define WRITE(ch, v) \
+#define WRITE(label, ch, v) \
 do { \
-  DEBUG(fprintf(stdout, "\tW[" #ch "]\n");) \
+  label: \
+  CURRENT_LABEL(label); \
   if (!ch.read_ok) { \
     ch.value   = v; \
     ch.read_ok = 1; \
+    DEBUG(fprintf(stdout, "\t" #ch " <- %d\n", v);) \
+    deadlocked = false; \
   } \
-  goto *scheduler; \
+  SCHEDULE_NEXT(); \
   } while (0);
 
-#define READ(ch, v) \
+#define READ(label, ch, v) \
 do { \
-  DEBUG(fprintf(stdout, "\tR[" #ch "]\n");) \
+  label: \
+  CURRENT_LABEL(label); \
   if (ch.read_ok) { \
     ch.read_ok = 0; \
     v = ch.value; \
+    DEBUG(fprintf(stdout, "\t" #ch " -> " #v "\n");) \
+    deadlocked = false; \
   } else { \
-    goto *scheduler; \
+    SCHEDULE_NEXT(); \
   } \
 } while (0);
 
-static int counter = 0;
-
 #define CURRENT_LABEL(tag) \
-counter++; \
   current_process->label = &&tag; \
-  DEBUG(fprintf(stdout, #tag ": %d\n", counter);) \
+  DEBUG(fprintf(stdout, " - " #tag "\n");) \
 
 #define GET_PARAM(type, loc) (type (current_process->params[loc]))
+
+#define SCHEDULE_NEXT() \
+do { \
+  current_process = get_next_process(current_process); \
+  goto *(current_process->label); \
+} while (0);
+
+#define SCHEDULE(proc) \
+do { \
+  DEBUG(fprintf(stdout, "SCHEDULING " #proc "\n");) \
+  goto *(proc.label); \
+} while (0);
 
 /* ***************************************************************** */
 /* TYPES */
@@ -59,13 +80,11 @@ counter++; \
 typedef struct channel_record {
   int value;
   int read_ok : 1;
-  void *next;
 } channel;
 
 typedef struct process_record {
   struct list_elem e;
-  int *params;
-  volatile void *label;
+  void *label;
 } process;
 
 /* ***************************************************************** */
