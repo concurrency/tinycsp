@@ -44,8 +44,11 @@ This exploration takes code like this:
 
 <pre>
 PROC producer (CHAN INT ch!)
+  INITIAL INT counter IS 0:
   WHILE TRUE
-    ch ! 42
+    SEQ
+      counter = counter + 1
+      ch ! counter
 :
 
 PROC consumer (CHAN INT ch?)
@@ -60,10 +63,13 @@ and turns it into C that looks like this:
 
 <pre>
   PROC (producer);
+    int counter = 0;
     while (true) {
-      WRITE (PRODUCER_WRITE_CH, ch, 42);
+      counter = counter + 1;
+      WRITE (PRODUCER_WRITE_CH, ch, counter);
     }        
   PROCEND (producer);
+
 
   PROC (consumer);
     while (true) { 
