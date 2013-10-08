@@ -325,6 +325,8 @@ int main (void) {
     current_process = &main;
     // PAR
     // Add everyone to the party.
+    // Really should now check that everyone is still running 
+    // See the anonymous processes in delta for how it should work.
     add_to_front(&prefix);
     add_to_front(&succ);
 
