@@ -4,22 +4,50 @@
 
 struct list RQ;
     
+    
+void show_queue (process *p) {
+  struct list_elem *e;
+  process *ap;
+  // printf ("RFQ %8p\n", p);
+  
+  printf ("\n");
+  for (e =  list_begin (&RQ); 
+       e != list_end (&RQ);
+       e =  list_next (e)) {
+     ap = list_entry(e, process, e);
+     if (ap == p) {
+       printf("- *%c* ", ap->name);
+     } else {
+       printf("- %c ", ap->name);
+     }
+  }
+  
+  printf ("\n");
+}  
+
 void remove_from_queue (process *p) {
   // We want to remove this one
   struct list_elem *tgt = &p->e;
   struct list_elem *e;
   // printf ("RFQ %8p\n", p);
   
+  DEBUG(printf("Before remove: %d\n", (int)list_size(&RQ)););
   for (e =  list_begin (&RQ); 
        e != list_end (&RQ);
        e =  list_next (e))
     {
       if (e == tgt) {
-        list_remove(e);
+        p = list_entry(e, process, e);
+        p->running = 0;
+        DEBUG(printf("Removing %c\n", p->name));
+
+        list_remove(tgt);
         break;
       }
     }
-  
+    DEBUG(printf("After remove: %d\n", (int)list_size(&RQ)););
+    
+    
   // printf ("RFQ DONE\n", p);
 }
 

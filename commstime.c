@@ -10,52 +10,76 @@
 extern struct list RQ;
 process *current_process;
 
-int main (void) {
-  // Declare channels
+int main (void) {	
+	/* Declare channels 
+   * All of the structures I've used are mostly useless as exemplified
+   * in this example. That said, I wonder if they will help me later,
+   * if I keep exploring and anything grows in complexity.
+ 	 */
   static channel a, b, c, d;
-  // Declare processes
-  static process prefix, delta, seqdelta, succ, consume, main, id;
 
-  // And, the next item to run.
-  void *next, *end, *start;
+  /* Declare processes.
+   * I might decide to wipe out this structure, or put more in it.
+   * Currently, I'm undecided. 
+   */  
+  static process prefix, delta, seqdelta, succ, consume, main, id;
   
-  // Set up the empty queue
+  /* The runqueue.
+   * This is probably heavier than needed, but it is a clean implementation
+   * of a doubly-linked list that I used recently in my OS course.
+   * From the PintOS project.
+   */
   list_init(&RQ);
     
-  // Set up the first process.
+  /* Get the 'main' process on the runqueue.
+   */
   DEBUG(printf ("Adding main\n");)
   add_to_front(&main);
   
-  // Initialize channels
+  /* Initialize channels.
+   * The channel status bits are all set so that they're ready
+   * for writing, and the value on the channel is set to -1.
+   */
   CHAN_INIT (a);
   CHAN_INIT (b);
   CHAN_INIT (c);
   CHAN_INIT (d);
-  
-  // Set up all the processes with initial labels
-  id.label   = &&ID;
-  
-  prefix.label = &&PREFIX;
-  // VAL INTs can become defines
-  #define prefix_0 0
-    
-  delta.label  = &&DELTA;
-  
-  seqdelta.label = &&SEQDELTA;
-    
-  succ.label   = &&SUCC;
-  
-  consume.label = &&CONSUME;
-  // VAL INTs can become defines
+
+  /* VAL INT declarations
+   * Declaring all VAL INTs as constants actually made things faster.
+   * No surprise. If a compiler is generating code, this is an easy
+   * thing to lift out.
+   */
+  #define prefix_0         0
   #define consume_0  1000000
   
-  main.label = &&MAIN;
-  
-  // Set the end point
-  end   = &&hotel_california;
+  /* Set processes' GOTO labels.
+   * Sets up the process structures with their initial jump targets.
+   */
+  SET_LABEL(id);
+  id.name = 'I';
+  id.running = 1;
+  SET_LABEL(prefix);    
+  prefix.name = 'P';
+  prefix.running = 1;
+  SET_LABEL(delta);
+  delta.name = 'D';
+  delta.running = 1;
+  SET_LABEL(seqdelta);
+  seqdelta.name = 'D';
+  seqdelta.running = 1;
+  SET_LABEL(succ);
+  succ.name = 'S';
+  succ.running = 1;
+  SET_LABEL(consume);
+  consume.name = 'C';
+  consume.running = 1;
+  SET_LABEL(main);
+  main.name = 'M';
+  main.running = 1;
 
   DEBUG(printf ("Jumping to main...\n");)
-  goto *(list_entry(list_front(&RQ), process, e)->label);
+  goto *(main.label); 
   
   /* 
   --{{{  PROC id (CHAN OF INT in, out)
@@ -68,17 +92,15 @@ int main (void) {
   :
   --}}}
   */
-  ID:
-  current_process = &id;
-  DEBUG(printf("ID\n");)
-  do {
+
+  PROC (id);
     int local;
     while (true) {
       READ (ID_READ_CH, b, local);
       WRITE (ID_WRITE_CH, a, local);
     }
-    SCHEDULE_NEXT();
-  } while (0);
+  PROCEND (id);
+    
   
   /*
   --{{{  PROC prefix (VAL INT n, CHAN OF INT in, out)
@@ -89,22 +111,16 @@ int main (void) {
   :
   --}}}
   */
-  PREFIX:
-  current_process = &prefix;
-  DEBUG(printf ("PREFIX\n");)
-  do {
 
+  PROC (prefix);
     WRITE (PREFIX_WRITE_A, a, prefix_0);
+
     // Executing a process is the same as adding
     // it to the queue? Not really. Probably should
     // jump to it.
-    add_to_front (&id);
-    goto *id.label;
-    
-    // The last thing a process does is dive into the
-    // scheduler, I suppose.
-    SCHEDULE_NEXT();
-  } while (0);
+    add_to_back (&id);
+    // Remove ourselves
+  PROCEND (prefix);
   
   /*
   --{{{  PROC delta (CHAN OF INT in, out.0, out.1)
@@ -120,33 +136,50 @@ int main (void) {
   --}}}
   a, c, d
   */
-  DELTA:
-  current_process = &delta;
-  DEBUG(printf ("DELTA\n");)
-  do {
+  PROC (delta);
     int local_0;
     process p1, p2;
     
     while (true) {
+      DEBUG(printf ("<------ DELTA TOP ------>\n"););
       READ (DELTA_READ_A, a, local_0);
       
       // START OF PAR
-      p1.label = &&DELTA_WRITE_C;
-      p2.label = &&DELTA_WRITE_D;
+      // ANONYMOUS PROCESSES
+      // Add all the processes first.
+      p1.label = &&DELTA_WRITE_C_1;
+      p1.name = '1';
+      p1.running = 1;
       add_to_back(&p1);
+      
+      p2.label = &&DELTA_WRITE_D_2;      
+      p2.name = '2';
+      p2.running = 1;
       add_to_back(&p2);
-      
-      // ANONYMOUS PROCESSES?
-      WRITE (DELTA_WRITE_C, c, local_0);
-      remove_from_queue(&p1);
+      // After loading up the PAR, schedule whomever is next.
+      // We'll run these eventually. This differs from KRoC, but
+      // I think the semantics will work out...
       SCHEDULE_NEXT();
-
-      WRITE (DELTA_WRITE_D, d, local_0);
+    
+      WRITE (DELTA_WRITE_D_2, d, local_0);
       remove_from_queue(&p2);
-      SCHEDULE_NEXT();
+      goto DELTA_END_PAR;
       
+      WRITE (DELTA_WRITE_C_1, c, local_0);
+      remove_from_queue(&p1);
+      goto DELTA_END_PAR;
+      
+      DELTA_END_PAR:
+      CURRENT_LABEL(DELTA_END_PAR);
+
+      if (p1.running | p2.running) {
+        SCHEDULE_NEXT();
+      }
+
+      DEBUG(printf ("<------ DELTA BOTTOM ------>\n"););
     }
-  } while (0);
+    
+  PROCEND (delta);
 
   /*
   --{{{  PROC seq.delta (CHAN OF INT in, out.0, out.1)
@@ -161,22 +194,18 @@ int main (void) {
   --}}}
   */
   
-  SEQDELTA:
-  current_process = &seqdelta;
-  DEBUG(printf ("SEQ DELTA\n");)
-  do {
+  PROC (seqdelta);
     int local_0;
     
     while (true) {
       READ (SEQDELTA_READ_A, a, local_0);
       /* THIS BREAKS IF I SEND ON CHANNEL C FIRST */
+      /* It seems to back all the way up to PREFIX,
+       * where the issue is getting 'a' to clear. */
       WRITE (SEQDELTA_WRITE_D, d, local_0);   
       WRITE (SEQDELTA_WRITE_C, c, local_0);   
     }
-    
-    SCHEDULE_NEXT();
-  } while (0);
-  
+  PROCEND (seqdelta);
 
   
   /*
@@ -190,16 +219,14 @@ int main (void) {
   :
   --}}}
   */
-  SUCC:
-  current_process = &succ;
-  DEBUG(printf ("SUCC\n");)
-  do {
+
+  PROC (succ);
     int local_0;
     while (true) {
       READ (SUCC_READ_C, c, local_0);
       WRITE (SUCC_WRITE_B, b, (local_0 + 1));
     }
-  } while (0);
+  PROCEND (succ);
   
   /*
   --{{{  PROC consume (VAL INT n.loops, CHAN OF INT in, CHAN OF BYTE out)
@@ -242,10 +269,8 @@ int main (void) {
   --}}}
   */
   
-  CONSUME:
-  current_process = &consume;
-  DEBUG(printf ("CONSUME\n");)
-  do {
+
+  PROC (consume);
     int i, local_value;
     struct timeval local_ts0, local_ts1;
      
@@ -280,7 +305,7 @@ int main (void) {
       }
     }
     
-  } while (0);
+  PROCEND (consume);
   
   /*
 
@@ -296,29 +321,27 @@ int main (void) {
       consume (10000, d, screen)
   */
   
-  MAIN:
-  current_process = &main;
-  // PAR
-  // Add everyone to the party.
-  add_to_front(&prefix);
-  add_to_front(&succ);
+  PROC (main);
+    current_process = &main;
+    // PAR
+    // Add everyone to the party.
+    add_to_front(&prefix);
+    add_to_front(&succ);
 
-  // CFLAGS=-DUSESEQDELTA make commstime && ./commstime.exe
-#ifdef USESEQDELTA
-     add_to_front(&seqdelta); 
-#else
-    add_to_front(&delta);
-#endif
+    // CFLAGS=-DUSESEQDELTA make commstime && ./commstime.exe
+    #ifdef USESEQDELTA
+       printf ("Using 'seqdelta'\n");
+       add_to_front(&seqdelta); 
+    #else
+       printf ("Using 'delta'\n");
+      add_to_front(&delta);
+    #endif
 
-  add_to_front(&consume);
+    add_to_front(&consume);
   
-  // Remove ourself from the queue.
-  remove_from_queue(&main);
-  
-  // Set the last process in the PAR to be next.
-  current_process = &consume;
-  SCHEDULE_NEXT();
-  goto *end;
+    // Set the last process in the PAR to be next.
+    current_process = &consume;
+  PROCEND (main);
   
   // You can check out, but you can never leave.
   hotel_california:
