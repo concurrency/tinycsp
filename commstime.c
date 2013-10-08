@@ -327,19 +327,19 @@ int main (void) {
     // Add everyone to the party.
     // Really should now check that everyone is still running 
     // See the anonymous processes in delta for how it should work.
-    add_to_front(&prefix);
-    add_to_front(&succ);
+    add_to_back(&prefix);
+    add_to_back(&succ);
 
     // CFLAGS=-DUSESEQDELTA make commstime && ./commstime.exe
     #ifdef USESEQDELTA
        printf ("Using 'seqdelta'\n");
-       add_to_front(&seqdelta); 
+       add_to_back(&seqdelta); 
     #else
        printf ("Using 'delta'\n");
-      add_to_front(&delta);
+      add_to_back(&delta);
     #endif
 
-    add_to_front(&consume);
+    add_to_back(&consume);
   
     // Set the last process in the PAR to be next.
     current_process = &consume;
