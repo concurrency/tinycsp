@@ -80,7 +80,7 @@ and turns it into C that looks like this:
   PROCEND (consumer);
 </pre>
 
-I belive, that through careful code construction, I can implement **PAR** and **ALT** without any real difficulty. Currently, I'm running producer/consumer and *commstime* (everyone's favorite non-benchmark) in reasonably clean code. I'm confident it could be generated automatically from occam source. **IF** should present no real difficulty, **STOP** and **SKIP** are simple enough, and that doesn't leave a lot of other things. 
+I belive, that through careful code construction, I can implement **PAR** and **ALT** without any real difficulty. (I've done **PAR**, and have **ALT** in my head.) Currently, I'm running producer/consumer and *commstime* (everyone's favorite non-benchmark) in reasonably clean code. I'm confident it could be generated automatically from occam source. **IF** should present no real difficulty, **STOP** and **SKIP** are simple enough, and that doesn't leave a lot of other things. 
 
 I even think I have my deadlock detection correct. (If I go through all of my channels, and nothing happens, I declare deadlock. However, I need to add TIMERs into the mix, which will change things a bit.)
 
