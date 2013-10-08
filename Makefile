@@ -9,3 +9,6 @@ commstime:
 
 prodcons2:
 	gcc $(CFLAGS) -I. -o pc2.exe list.c tinycsp.c prodcons2.c
+
+prodcons3:
+	gcc $(CFLAGS) --combine -fwhole-program -I. -o pc3.exe list.c tinycsp.c prodcons3.c
