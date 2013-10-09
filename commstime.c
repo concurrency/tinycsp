@@ -199,9 +199,6 @@ int main (void) {
     
     while (true) {
       READ (SEQDELTA_READ_A, a, local_0);
-      /* THIS BREAKS IF I SEND ON CHANNEL C FIRST */
-      /* It seems to back all the way up to PREFIX,
-       * where the issue is getting 'a' to clear. */
       WRITE (SEQDELTA_WRITE_D, d, local_0);   
       WRITE (SEQDELTA_WRITE_C, c, local_0);   
     }
