@@ -36,6 +36,8 @@ We once experimented with generating C from TCE bytecode, but this was sloppy, a
 1. Lots of GOTO statements, and 
 2. Putting everything in a single function.
 
+(Well, that's not entirely true; there's tock, which generates C that interacts, through CIF, with CCSP, but that's too big/heavy for tiny embedded targets. I think.)
+
 However, Arduino programs are typically small. So, what if I could take occam code, and generate C that implemented the scheduling correctly through cooperative jumps around a program? This seemed like a reasonable exploration, but I didn't want to write the compiler first.
 
 ## Testing By Hand
