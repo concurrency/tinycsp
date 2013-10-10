@@ -65,7 +65,7 @@ int scheduler () {
         }
 
         Process *p = runqueue.front();
-        printf("Running %p\n", (long) p);
+        printf("Running %ld\n", (long) p);
         runqueue.pop();
         p->run();
     }
