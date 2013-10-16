@@ -1,12 +1,15 @@
 #include <stdio.h>
-#include <queue>
+#include <stdlib.h>
 
 // ... processes ...
 
 class Process {
 public:
     virtual void run() = 0;
+    Process *next;
 };
+
+Process *next_process = NULL;
 
 #define PROC(name) \
     class name : public Process { \
@@ -45,11 +48,12 @@ public:
     } while (false)
 
 // ... scheduler ...
-
-std::queue<Process *> runqueue;
-
+      
 #define SCHEDULE(proc) \
-    runqueue.push(proc)
+  do { \
+    (proc)->next = next_process; \
+    next_process = proc; \
+  } while (0)
 
 #define START_PROC(proc, ...) \
     do { \
@@ -57,18 +61,15 @@ std::queue<Process *> runqueue;
         SCHEDULE (&proc); \
     } while (false)
 
-int scheduler () {
-    while (true) {
-        if (runqueue.empty()) {
-            printf("Deadlock!\n");
-            return 1;
-        }
-
-        Process *p = runqueue.front();
-        printf("Running %ld\n", (long) p);
-        runqueue.pop();
-        p->run();
+int scheduler() {
+  while (true) {
+    if (!next_process) {
+      return -1;
     }
+
+    next_process->run();
+    next_process = next_process->next;
+  }
 }
 
 // ... channels ...
@@ -150,7 +151,19 @@ int main() {
     Channel chan1, chan2;
     Producer p1, p2;
     Consumer c1, c2;
-
+    
+    /*
+    do { 
+      p1.init(1, &chan1); 
+      do { 
+        // Need to parenthesize the proc in the macro.
+        // & has lower precedence than ->.
+        &p1->next = next_process; 
+        next_process = &p1; 
+      } while (0); 
+    } while (false);
+    */
+    
     START_PROC (p1, 1, &chan1);
     START_PROC (c1, 1, &chan1);
     START_PROC (p2, 2, &chan2);
