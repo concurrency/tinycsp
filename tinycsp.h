@@ -38,6 +38,9 @@ int deadlocked;
 /* ***************************************************************** */
 /* CHANNEL HELPERS */
 
+#define PASTE0(x, y) x ## y
+#define PASTE(x, y) PASTE0(x,y)
+
 #define CHAN_INIT(ch) \
 do { \
   ch.value   = -1; \
@@ -56,26 +59,42 @@ do { \
     structure.running = state; \
     add_to_back(&structure);
 
-#define WRITE(label, ch, v) \
+#define WRITE(ch, v) \
 do { \
-  label: \
-  CURRENT_LABEL(label); \
+  PASTE(WRITE_, __LINE__): \
+  CURRENT_LABEL(PASTE(WRITE_, __LINE__)); \
   DEBUG(fprintf (stdout, "\nW " #ch ".read_ok: %d\n", ch.read_ok);) \
   if (!ch.read_ok) { \
     ch.value   = v; \
     ch.read_ok = 1; \
     DEBUG(fprintf(stdout, "\t" #ch " <- %d\n", v);) \
     deadlocked = false; \
-    CURRENT_LABEL(DONE_##label); \
+    CURRENT_LABEL(PASTE(DONE_WRITE_, __LINE__)); \
   } \
   SCHEDULE_NEXT(); \
   } while (0); \
-  DONE_##label:
+  PASTE(DONE_WRITE_, __LINE__):
 
-#define READ(label, ch, v) \
+  #define NAMED_WRITE(label, ch, v) \
+  do { \
+    label: \
+    CURRENT_LABEL(label); \
+    DEBUG(fprintf (stdout, "\nW " #ch ".read_ok: %d\n", ch.read_ok);) \
+    if (!ch.read_ok) { \
+      ch.value   = v; \
+      ch.read_ok = 1; \
+      DEBUG(fprintf(stdout, "\t" #ch " <- %d\n", v);) \
+      deadlocked = false; \
+      CURRENT_LABEL(PASTE(DONE_WRITE_, label)); \
+    } \
+    SCHEDULE_NEXT(); \
+    } while (0); \
+    PASTE(DONE_WRITE_, label):
+
+#define READ(ch, v) \
 do { \
-  label: \
-  CURRENT_LABEL(label); \
+  PASTE(READ_, __LINE__): \
+  CURRENT_LABEL(PASTE(READ_, __LINE__)); \
   DEBUG(fprintf (stdout, "\nR " #ch ".read_ok: %d\n", ch.read_ok);) \
   if (ch.read_ok) { \
     ch.read_ok = 0; \
@@ -114,6 +133,16 @@ do {
   SCHEDULE_NEXT(); \
 } while (0);
 
+#define FOREVER() \
+  while (true) { 
+
+  // PASTE(WHILE, __LINE__): \
+  // CURRENT_LABEL(PASTE(WHILE, __LINE__));
+
+#define ENDFOREVER() }
+  // deadlocked = false; \
+  // SCHEDULE_NEXT(); \
+  // }
 
 /* ***************************************************************** */
 /* QUEUE HLPERS */

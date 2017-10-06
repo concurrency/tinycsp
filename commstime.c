@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <time.h>
+#include <sys/time.h>
 
 #include "tinycsp.h"
 #include <time.h>
@@ -96,8 +96,8 @@ int main (void) {
   PROC (id);
     int local;
     while (true) {
-      READ (ID_READ_CH, b, local);
-      WRITE (ID_WRITE_CH, a, local);
+      READ (b, local);
+      WRITE (a, local);
     }
   PROCEND (id);
     
@@ -113,7 +113,7 @@ int main (void) {
   */
 
   PROC (prefix);
-    WRITE (PREFIX_WRITE_A, a, prefix_0);
+    WRITE (a, prefix_0);
 
     // Executing a process is the same as adding
     // it to the queue? Not really. Probably should
@@ -142,7 +142,7 @@ int main (void) {
     
     while (true) {
       DEBUG(printf ("<------ DELTA TOP ------>\n"););
-      READ (DELTA_READ_A, a, local_0);
+      READ (a, local_0);
       
       // START OF PAR
       // ANONYMOUS PROCESSES
@@ -161,11 +161,11 @@ int main (void) {
       // I think the semantics will work out...
       SCHEDULE_NEXT();
     
-      WRITE (DELTA_WRITE_D_2, d, local_0);
+      NAMED_WRITE (DELTA_WRITE_D_2, d, local_0);
       remove_from_queue(&p2);
       goto DELTA_END_PAR;
       
-      WRITE (DELTA_WRITE_C_1, c, local_0);
+      NAMED_WRITE (DELTA_WRITE_C_1, c, local_0);
       remove_from_queue(&p1);
       goto DELTA_END_PAR;
       
@@ -197,11 +197,11 @@ int main (void) {
   PROC (seqdelta);
     int local_0;
     
-    while (true) {
-      READ (SEQDELTA_READ_A, a, local_0);
-      WRITE (SEQDELTA_WRITE_D, d, local_0);   
-      WRITE (SEQDELTA_WRITE_C, c, local_0);   
-    }
+    FOREVER()
+      READ (a, local_0);
+      WRITE (d, local_0);   
+      WRITE (c, local_0);   
+    ENDFOREVER()
   PROCEND (seqdelta);
 
   
@@ -220,8 +220,8 @@ int main (void) {
   PROC (succ);
     int local_0;
     while (true) {
-      READ (SUCC_READ_C, c, local_0);
-      WRITE (SUCC_WRITE_B, b, (local_0 + 1));
+      READ (c, local_0);
+      WRITE (b, (local_0 + 1));
     }
   PROCEND (succ);
   
@@ -276,7 +276,7 @@ int main (void) {
     
     for (i = 0 ; i < 1000 ; i++) {
       int local_value;
-      READ (CONSUME_READ_D1, d, local_value);
+      READ (d, local_value);
     }
 
     
@@ -287,7 +287,7 @@ int main (void) {
       // clock_gettime(CLOCK_REALTIME, &local_ts0);
       gettimeofday(&local_ts0, NULL);
       for (i = 0 ; i < consume_0 ; i++) {
-        READ (CONSUME_READ_D2, d, local_value);
+        READ (d, local_value);
         
       }
       // clock_gettime(CLOCK_REALTIME, &local_ts1);

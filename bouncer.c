@@ -32,14 +32,16 @@ int main (void) {
     FOREVER()
       counter = counter + 1;
       WRITE (ch, counter);
+      printf ("P %d\n", counter);
     ENDFOREVER()
   PROCEND (producer);
 
   PROC (consumer);
+    int local = 0;
     FOREVER() 
-      int local;
       READ (ch, local);
-      printf ("C %d\n", local);   
+      local += 1;
+      printf ("C %d\n", local);
     ENDFOREVER()
   PROCEND (consumer);
   
